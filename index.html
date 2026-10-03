@@ -252,10 +252,15 @@
   .modality-item .mt-name small{ display:block; font-weight:400; color:var(--ink-soft); font-size:.75rem; }
   .modality-item .mt-price{ font-family:'Playfair Display',serif; font-weight:600; color:var(--forest); font-size:.95rem; white-space:nowrap;}
 
+  .cupom-msg{ margin-top:8px; font-size:.82rem; display:none; }
+  .cupom-msg.valid{display:block; color:#3d6b3d;}
+  .cupom-msg.invalid{display:block; color:#a4333c;}
+
   .price-summary{
     margin-top:22px; padding:16px; border-radius:10px;
     background:var(--cream); border:1px solid var(--parchment-2); text-align:center;
   }
+  .price-original{ display:none; font-size:.85rem; color:var(--ink-soft); text-decoration:line-through; opacity:.75; }
   .price-final{ display:block; font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:600; color:var(--forest); }
   .price-label{ display:block; font-size:.78rem; color:var(--ink-soft); margin-top:2px; }
 
@@ -452,7 +457,12 @@
       <label>O que te motivou a buscar o Nível II? <span class="req">*</span></label>
       <textarea id="motivacao" required></textarea>
 
+      <label>Cupom de desconto <span style="color:var(--ink-soft); font-weight:400;">(opcional)</span></label>
+      <input type="text" id="cupom" placeholder="Se tiver um cupom, digite aqui" autocomplete="off" style="text-transform:uppercase;">
+      <div class="cupom-msg" id="cupomMsg"></div>
+
       <div class="price-summary">
+        <span class="price-original" id="priceOriginal">R$ 220,00</span>
         <span class="price-final" id="priceFinal">R$ 220,00</span>
         <span class="price-label" id="priceLabel">100% on-line</span>
       </div>
@@ -489,7 +499,16 @@
    ========================================================================= */
 const N8N_WEBHOOK_URL = "https://n8n-eogk.srv1598428.hstgr.cloud/webhook/reiki-nivel-2-inscricao";
 
+const CUPONS = {
+  'REIKE10': 10,
+  'REIKE50': 50,
+  'REIKE100': 100
+};
+
 const modalidadeInputs = document.querySelectorAll('input[name="modalidade"]');
+const cupomInput = document.getElementById('cupom');
+const cupomMsg = document.getElementById('cupomMsg');
+const priceOriginal = document.getElementById('priceOriginal');
 const priceFinal = document.getElementById('priceFinal');
 const priceLabel = document.getElementById('priceLabel');
 
@@ -499,14 +518,46 @@ function modalidadeLabel(v) {
   return v === 'hibrido' ? 'Híbrido (on-line + presencial)' : '100% on-line';
 }
 
+function cupomAtivo() {
+  const codigo = cupomInput.value.trim().toUpperCase();
+  return codigo && CUPONS[codigo] ? codigo : null;
+}
+
 function atualizarPreco() {
   const selected = document.querySelector('input[name="modalidade"]:checked');
-  const price = parseFloat(selected.closest('.modality-item').querySelector('.mt-price').dataset.price);
-  priceFinal.textContent = formatBRL(price);
+  const basePrice = parseFloat(selected.closest('.modality-item').querySelector('.mt-price').dataset.price);
   priceLabel.textContent = modalidadeLabel(selected.value);
+
+  const codigo = cupomInput.value.trim().toUpperCase();
+
+  if (!codigo) {
+    cupomMsg.classList.remove('valid', 'invalid');
+    cupomMsg.textContent = '';
+    priceOriginal.style.display = 'none';
+    priceFinal.textContent = formatBRL(basePrice);
+    return;
+  }
+
+  const desconto = CUPONS[codigo];
+  if (desconto) {
+    const precoComDesconto = basePrice * (1 - desconto / 100);
+    cupomMsg.classList.remove('invalid');
+    cupomMsg.classList.add('valid');
+    cupomMsg.textContent = `Cupom aplicado! ${desconto}% de desconto 🤍`;
+    priceOriginal.style.display = 'block';
+    priceOriginal.textContent = formatBRL(basePrice);
+    priceFinal.textContent = formatBRL(precoComDesconto);
+  } else {
+    cupomMsg.classList.remove('valid');
+    cupomMsg.classList.add('invalid');
+    cupomMsg.textContent = 'Cupom inválido.';
+    priceOriginal.style.display = 'none';
+    priceFinal.textContent = formatBRL(basePrice);
+  }
 }
 
 modalidadeInputs.forEach(el => el.addEventListener('change', atualizarPreco));
+cupomInput.addEventListener('input', atualizarPreco);
 atualizarPreco();
 
 const form = document.getElementById('inscricaoForm');
@@ -520,7 +571,10 @@ form.addEventListener('submit', async (e) => {
 
   const selected = document.querySelector('input[name="modalidade"]:checked');
   const modalidade = selected.value;
-  const price = parseFloat(selected.closest('.modality-item').querySelector('.mt-price').dataset.price);
+  const basePrice = parseFloat(selected.closest('.modality-item').querySelector('.mt-price').dataset.price);
+  const codigo = cupomAtivo();
+  const desconto = codigo ? CUPONS[codigo] : 0;
+  const valorFinal = basePrice * (1 - desconto / 100);
 
   const payload = {
     nome: document.getElementById('nome').value.trim(),
@@ -530,7 +584,10 @@ form.addEventListener('submit', async (e) => {
     nascimento: document.getElementById('nascimento').value,
     modalidade: modalidade,
     modalidade_label: modalidadeLabel(modalidade),
-    valor: price,
+    valor_original: basePrice,
+    cupom: codigo || '',
+    desconto_percentual: desconto,
+    valor: valorFinal,
     motivacao: document.getElementById('motivacao').value.trim(),
     origem: 'landing-reiki-nivel-2',
     data_envio: new Date().toISOString()
