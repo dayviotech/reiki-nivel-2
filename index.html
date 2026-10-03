@@ -48,8 +48,8 @@
     line-height:1;
   }
   .lotus-icon{
-    width:92px; height:auto;
-    margin:0 auto 10px;
+    width:160px; height:auto;
+    margin:0 auto 8px;
     display:block;
     animation:pulse 2.8s ease-in-out infinite;
   }
@@ -297,9 +297,26 @@
   footer .contact a svg{width:16px; height:16px;}
 
   .req{color:var(--gold-deep);}
+
+  .top-banner{
+    position:relative; width:100%;
+    height:min(52vw, 340px);
+    overflow:hidden;
+  }
+  .top-banner img{
+    width:100%; height:100%; object-fit:cover; display:block;
+  }
+  .top-banner::after{
+    content:''; position:absolute; left:0; right:0; bottom:0; height:60%;
+    background:linear-gradient(180deg, rgba(243,236,216,0) 0%, var(--parchment) 92%);
+  }
 </style>
 </head>
 <body>
+
+<div class="top-banner">
+  <img src="images/reiki-maos.png" alt="Mãos canalizando energia Reiki">
+</div>
 
 <section class="hero">
   <div class="kanji">霊気</div>
