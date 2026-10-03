@@ -264,6 +264,13 @@
   .price-final{ display:block; font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:600; color:var(--forest); }
   .price-label{ display:block; font-size:.78rem; color:var(--ink-soft); margin-top:2px; }
 
+  .cortesia-msg{
+    display:none; margin-top:12px; padding:12px 14px; border-radius:10px;
+    background:#eef3e6; border:1px solid var(--sage); color:var(--forest);
+    font-size:.84rem; line-height:1.5; text-align:center;
+  }
+  .cortesia-msg.show{display:block;}
+
   .submit-btn{
     width:100%; margin-top:24px; padding:15px; border:none; border-radius:999px;
     background:var(--forest); color:var(--cream);
@@ -466,6 +473,7 @@
         <span class="price-final" id="priceFinal">R$ 220,00</span>
         <span class="price-label" id="priceLabel">100% on-line</span>
       </div>
+      <div class="cortesia-msg" id="cortesiaMsg">Cupom de cortesia aplicado — não há pagamento a fazer. Clique abaixo para confirmar sua inscrição.</div>
 
       <button type="submit" class="submit-btn" id="submitBtn">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.9-10.1-9.3C.4 9.1 1.6 5.6 4.9 4.7c2-.6 4 .2 5.1 1.9C11.1 4.9 13.1 4.1 15.1 4.7c3.3.9 4.5 4.4 3 7-2.6 4.4-10.1 9.3-10.1 9.3z"/></svg>
@@ -511,6 +519,11 @@ const cupomMsg = document.getElementById('cupomMsg');
 const priceOriginal = document.getElementById('priceOriginal');
 const priceFinal = document.getElementById('priceFinal');
 const priceLabel = document.getElementById('priceLabel');
+const cortesiaMsg = document.getElementById('cortesiaMsg');
+const submitLabelEl = document.getElementById('submitLabel');
+
+const TEXTO_PAGAMENTO = 'Continuar para pagamento';
+const TEXTO_CORTESIA = 'Confirmar inscrição gratuita';
 
 function formatBRL(v) { return 'R$ ' + v.toFixed(2).replace('.', ','); }
 
@@ -521,6 +534,12 @@ function modalidadeLabel(v) {
 function cupomAtivo() {
   const codigo = cupomInput.value.trim().toUpperCase();
   return codigo && CUPONS[codigo] ? codigo : null;
+}
+
+function atualizarCortesia(valorFinal) {
+  const gratuito = valorFinal === 0;
+  cortesiaMsg.classList.toggle('show', gratuito);
+  submitLabelEl.textContent = gratuito ? TEXTO_CORTESIA : TEXTO_PAGAMENTO;
 }
 
 function atualizarPreco() {
@@ -535,6 +554,7 @@ function atualizarPreco() {
     cupomMsg.textContent = '';
     priceOriginal.style.display = 'none';
     priceFinal.textContent = formatBRL(basePrice);
+    atualizarCortesia(basePrice);
     return;
   }
 
@@ -547,12 +567,14 @@ function atualizarPreco() {
     priceOriginal.style.display = 'block';
     priceOriginal.textContent = formatBRL(basePrice);
     priceFinal.textContent = formatBRL(precoComDesconto);
+    atualizarCortesia(precoComDesconto);
   } else {
     cupomMsg.classList.remove('valid');
     cupomMsg.classList.add('invalid');
     cupomMsg.textContent = 'Cupom inválido.';
     priceOriginal.style.display = 'none';
     priceFinal.textContent = formatBRL(basePrice);
+    atualizarCortesia(basePrice);
   }
 }
 
@@ -593,8 +615,10 @@ form.addEventListener('submit', async (e) => {
     data_envio: new Date().toISOString()
   };
 
+  const gratuito = valorFinal === 0;
+
   btn.disabled = true;
-  label.textContent = 'Preparando pagamento...';
+  label.textContent = gratuito ? 'Confirmando inscrição...' : 'Preparando pagamento...';
 
   try {
     const res = await fetch(N8N_WEBHOOK_URL, {
@@ -614,8 +638,10 @@ form.addEventListener('submit', async (e) => {
   } catch (err) {
     console.error(err);
     btn.disabled = false;
-    label.textContent = 'Continuar para pagamento';
-    errorMsg.textContent = 'Não conseguimos preparar seu pagamento agora. Tente novamente em instantes ou chame no WhatsApp.';
+    label.textContent = gratuito ? TEXTO_CORTESIA : TEXTO_PAGAMENTO;
+    errorMsg.textContent = gratuito
+      ? 'Não conseguimos confirmar sua inscrição agora. Tente novamente em instantes ou chame no WhatsApp.'
+      : 'Não conseguimos preparar seu pagamento agora. Tente novamente em instantes ou chame no WhatsApp.';
     errorMsg.classList.add('show');
   }
 });
